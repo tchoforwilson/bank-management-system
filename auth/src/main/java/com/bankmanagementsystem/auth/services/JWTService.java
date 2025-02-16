@@ -5,12 +5,17 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.security.Keys;
+
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+
+import javax.crypto.SecretKey;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -33,14 +38,16 @@ public class JWTService {
     }
 
     private String createToken(Map<String, Object> claims, String subject) {
+        SecretKey key = getSecretKey();
+
         return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(subject)
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(
-                        new Date(System.currentTimeMillis() + jwtConfig.getExpiration() * 1000))
-                .signWith(SignatureAlgorithm.HS256, jwtConfig.getSecret())
+                .claims(claims)
+                .subject(subject)
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(new Date(System.currentTimeMillis() + jwtConfig.getExpiration() * 1000))
+                .signWith(key)
                 .compact();
+
     }
 
     public String extractUsername(String token) {
@@ -57,11 +64,13 @@ public class JWTService {
     }
 
     private Claims extractAllClaims(String token) {
+        SecretKey key = getSecretKey();
+
         return Jwts.parser()
-                .setSigningKey(jwtConfig.getSecret())
+                .decryptWith(key)
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     public Boolean isTokenExpired(String token) {
@@ -71,6 +80,11 @@ public class JWTService {
     public Boolean validateToken(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+    }
+
+    public SecretKey getSecretKey() {
+        return Keys.hmacShaKeyFor(
+                jwtConfig.getSecret().getBytes(StandardCharsets.UTF_8));
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
