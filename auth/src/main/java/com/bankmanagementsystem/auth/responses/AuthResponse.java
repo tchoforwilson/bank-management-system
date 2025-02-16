@@ -1,8 +1,7 @@
 package com.bankmanagementsystem.auth.responses;
 
-import lombok.Data;
+import java.util.Objects;
 
-@Data
 public class AuthResponse<T> extends ApiResponse<T> {
     private String token;
 
@@ -23,4 +22,18 @@ public class AuthResponse<T> extends ApiResponse<T> {
         this.token = token;
     }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), token);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
+        AuthResponse<?> that = (AuthResponse<?>) o;
+        return Objects.equals(token, that.token) && super.equals(o);
+    }
 }
